@@ -1,10 +1,11 @@
 package benchmark
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/db-tech-uk/go-progress/progress"
 	"github.com/jmoiron/sqlx"
-	"github.com/rockwell-uk/go-progress/progress"
 )
 
 func SetupGeomBench(db *sqlx.DB, tableParams string) error {
@@ -14,7 +15,7 @@ func SetupGeomBench(db *sqlx.DB, tableParams string) error {
 	// Create the bench table
 	createTableSQL := getTableSQL(benchTableName, tableParams)
 
-	_, err := db.Exec(createTableSQL)
+	_, err := db.ExecContext(context.Background(), createTableSQL)
 	if err != nil {
 		return err
 	}
@@ -28,10 +29,10 @@ func TeardownGeomBench(db *sqlx.DB) {
 }
 
 func BmWKBExec(db *sqlx.DB, n int) error {
-	var funcName string = "benchmark.BmWKBExec"
-	var jobName string = "Geometry Benchmark [BmWKB]"
+	funcName := "benchmark.BmWKBExec"
+	jobName := "Geometry Benchmark [BmWKB]"
 
-	var magnitude int = n
+	magnitude := n
 
 	// BmWKBExec Job
 	var job progress.ProgressJob = &BmWKBExecJob{}

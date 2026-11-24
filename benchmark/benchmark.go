@@ -1,12 +1,14 @@
 package benchmark
 
 import (
+	"context"
 	"fmt"
+	"math"
 	"runtime"
 	"time"
 
+	"github.com/db-tech-uk/go-utils/timeutils"
 	"github.com/jmoiron/sqlx"
-	"github.com/rockwell-uk/go-utils/timeutils"
 )
 
 const benchTableName string = "benchmark"
@@ -49,22 +51,37 @@ func (res *BenchmarkResult) QueriesPerSecond() float64 {
 }
 
 func (res *BenchmarkResult) AllocsPerQuery() int {
-	return int(res.Allocs) / res.Queries
+	return perQuery(res.Allocs, res.Queries)
 }
 
 func (res *BenchmarkResult) BytesPerQuery() int {
-	return int(res.Bytes) / res.Queries
+	return perQuery(res.Bytes, res.Queries)
+}
+
+// perQuery divides total by queries, guarding against division by zero and
+// clamping the result so the uint64 -> int conversion cannot overflow.
+func perQuery(total uint64, queries int) int {
+	if queries <= 0 {
+		return 0
+	}
+
+	v := total / uint64(queries)
+	if v > math.MaxInt {
+		return math.MaxInt
+	}
+
+	return int(v)
 }
 
 func (b *Benchmark) Run(db *sqlx.DB) BenchmarkResult {
 	runtime.GC()
 
 	var memStats runtime.MemStats
-	var startMallocs uint64 = memStats.Mallocs
-	var startTotalAlloc uint64 = memStats.TotalAlloc
-	var startTime time.Time = time.Now()
-
 	runtime.ReadMemStats(&memStats)
+
+	startMallocs := memStats.Mallocs
+	startTotalAlloc := memStats.TotalAlloc
+	startTime := time.Now()
 
 	err := b.Bm(db, b.N)
 
@@ -83,8 +100,10 @@ func (b *Benchmark) Run(db *sqlx.DB) BenchmarkResult {
 func Warmup(db *sqlx.DB) error {
 	db.SetMaxIdleConns(16)
 
+	ctx := context.Background()
+
 	for i := 0; i < 10000; i++ {
-		rows, err := db.Query("SELECT 5 * 3")
+		rows, err := db.QueryContext(ctx, "SELECT 5 * 3")
 		if err != nil {
 			return err
 		}

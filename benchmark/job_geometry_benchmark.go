@@ -1,13 +1,14 @@
 package benchmark
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"strconv"
 
+	"github.com/db-tech-uk/go-progress/progress"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
-	"github.com/rockwell-uk/go-progress/progress"
 	"github.com/twpayne/go-geom"
 	"github.com/twpayne/go-geom/encoding/wkb"
 	"github.com/twpayne/go-geom/encoding/wkbcommon"
@@ -64,7 +65,7 @@ func (j *BmWKBExecJob) Run(job *progress.Job, input interface{}) (interface{}, e
 				hex.EncodeToString(wkb),
 			)
 
-			if _, err := db.Exec(insert); err != nil {
+			if _, err := db.ExecContext(context.Background(), insert); err != nil {
 				panic(err)
 			}
 

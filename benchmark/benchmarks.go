@@ -1,14 +1,18 @@
 package benchmark
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"sync"
 	"sync/atomic"
 )
 
 func BmSimpleExec(db *sql.DB, n int) error {
+	ctx := context.Background()
+
 	for i := 0; i < n; i++ {
-		if _, err := db.Exec("DO 1"); err != nil {
+		if _, err := db.ExecContext(ctx, "DO 1"); err != nil {
 			return err
 		}
 	}
@@ -16,13 +20,15 @@ func BmSimpleExec(db *sql.DB, n int) error {
 }
 
 func BmPreparedExec(db *sql.DB, n int) error {
-	stmt, err := db.Prepare("DO 1")
+	ctx := context.Background()
+
+	stmt, err := db.PrepareContext(ctx, "DO 1")
 	if err != nil {
 		return err
 	}
 
 	for i := 0; i < n; i++ {
-		if _, err := stmt.Exec(); err != nil {
+		if _, err := stmt.ExecContext(ctx); err != nil {
 			return err
 		}
 	}
@@ -31,10 +37,12 @@ func BmPreparedExec(db *sql.DB, n int) error {
 }
 
 func BmSimpleQueryRow(db *sql.DB, n int) error {
+	ctx := context.Background()
+
 	var num int
 
 	for i := 0; i < n; i++ {
-		if err := db.QueryRow("SELECT 1").Scan(&num); err != nil {
+		if err := db.QueryRowContext(ctx, "SELECT 1").Scan(&num); err != nil {
 			return err
 		}
 	}
@@ -42,13 +50,17 @@ func BmSimpleQueryRow(db *sql.DB, n int) error {
 }
 
 func BmPreparedQueryRow(db *sql.DB, n int) error {
-	stmt, err := db.Prepare("SELECT 1")
+	ctx := context.Background()
+
+	var num int
+
+	stmt, err := db.PrepareContext(ctx, "SELECT 1")
 	if err != nil {
 		return err
 	}
 
 	for i := 0; i < n; i++ {
-		if _, err := stmt.Exec(); err != nil {
+		if err := stmt.QueryRowContext(ctx).Scan(&num); err != nil {
 			return err
 		}
 	}
@@ -57,15 +69,17 @@ func BmPreparedQueryRow(db *sql.DB, n int) error {
 }
 
 func BmPreparedQueryRowParam(db *sql.DB, n int) error {
+	ctx := context.Background()
+
 	var num int
 
-	stmt, err := db.Prepare("SELECT ?")
+	stmt, err := db.PrepareContext(ctx, "SELECT ?")
 	if err != nil {
 		return err
 	}
 
 	for i := 0; i < n; i++ {
-		if err := stmt.QueryRow(i).Scan(&num); err != nil {
+		if err := stmt.QueryRowContext(ctx, i).Scan(&num); err != nil {
 			return err
 		}
 	}
@@ -74,7 +88,9 @@ func BmPreparedQueryRowParam(db *sql.DB, n int) error {
 }
 
 func BmEchoMixed5(db *sql.DB, n int) error {
-	stmt, err := db.Prepare("SELECT ?, ?, ?, ?, ?")
+	ctx := context.Background()
+
+	stmt, err := db.PrepareContext(ctx, "SELECT ?, ?, ?, ?, ?")
 	if err != nil {
 		return err
 	}
@@ -100,7 +116,8 @@ func BmEchoMixed5(db *sql.DB, n int) error {
 	var out entry
 
 	for i := 0; i < n; i++ {
-		if err := stmt.QueryRow(
+		if err := stmt.QueryRowContext(
+			ctx,
 			in.id,
 			in.name,
 			in.ratio,
@@ -120,9 +137,11 @@ func BmEchoMixed5(db *sql.DB, n int) error {
 }
 
 func BmSelectLargeString(db *sql.DB, n int) error {
+	ctx := context.Background()
+
 	var str string
 	for i := 0; i < n; i++ {
-		if err := db.QueryRow("SELECT REPEAT('A', 10000)").Scan(&str); err != nil {
+		if err := db.QueryRowContext(ctx, "SELECT REPEAT('A', 10000)").Scan(&str); err != nil {
 			return err
 		}
 	}
@@ -130,7 +149,9 @@ func BmSelectLargeString(db *sql.DB, n int) error {
 }
 
 func BmSelectPreparedLargeString(db *sql.DB, n int) error {
-	stmt, err := db.Prepare("SELECT REPEAT('A', 10000)")
+	ctx := context.Background()
+
+	stmt, err := db.PrepareContext(ctx, "SELECT REPEAT('A', 10000)")
 	if err != nil {
 		return err
 	}
@@ -138,7 +159,7 @@ func BmSelectPreparedLargeString(db *sql.DB, n int) error {
 
 	var str string
 	for i := 0; i < n; i++ {
-		if err := stmt.QueryRow().Scan(&str); err != nil {
+		if err := stmt.QueryRowContext(ctx).Scan(&str); err != nil {
 			return err
 		}
 	}
@@ -146,9 +167,11 @@ func BmSelectPreparedLargeString(db *sql.DB, n int) error {
 }
 
 func BmSelectLargeBytes(db *sql.DB, n int) error {
+	ctx := context.Background()
+
 	var raw []byte
 	for i := 0; i < n; i++ {
-		if err := db.QueryRow("SELECT REPEAT('A', 10000)").Scan(&raw); err != nil {
+		if err := db.QueryRowContext(ctx, "SELECT REPEAT('A', 10000)").Scan(&raw); err != nil {
 			return err
 		}
 	}
@@ -156,7 +179,9 @@ func BmSelectLargeBytes(db *sql.DB, n int) error {
 }
 
 func BmSelectPreparedLargeBytes(db *sql.DB, n int) error {
-	stmt, err := db.Prepare("SELECT REPEAT('A', 10000)")
+	ctx := context.Background()
+
+	stmt, err := db.PrepareContext(ctx, "SELECT REPEAT('A', 10000)")
 	if err != nil {
 		return err
 	}
@@ -164,7 +189,7 @@ func BmSelectPreparedLargeBytes(db *sql.DB, n int) error {
 
 	var raw []byte
 	for i := 0; i < n; i++ {
-		if err := stmt.QueryRow().Scan(&raw); err != nil {
+		if err := stmt.QueryRowContext(ctx).Scan(&raw); err != nil {
 			return err
 		}
 	}
@@ -172,9 +197,11 @@ func BmSelectPreparedLargeBytes(db *sql.DB, n int) error {
 }
 
 func BmSelectLargeRaw(db *sql.DB, n int) error {
+	ctx := context.Background()
+
 	var raw sql.RawBytes
 	for i := 0; i < n; i++ {
-		rows, err := db.Query("SELECT REPEAT('A', 10000)")
+		rows, err := db.QueryContext(ctx, "SELECT REPEAT('A', 10000)")
 		if err != nil {
 			return err
 		}
@@ -195,7 +222,9 @@ func BmSelectLargeRaw(db *sql.DB, n int) error {
 }
 
 func BmSelectPreparedLargeRaw(db *sql.DB, n int) error {
-	stmt, err := db.Prepare("SELECT REPEAT('A', 10000)")
+	ctx := context.Background()
+
+	stmt, err := db.PrepareContext(ctx, "SELECT REPEAT('A', 10000)")
 	if err != nil {
 		return err
 	}
@@ -203,7 +232,7 @@ func BmSelectPreparedLargeRaw(db *sql.DB, n int) error {
 
 	var raw sql.RawBytes
 	for i := 0; i < n; i++ {
-		rows, err := stmt.Query()
+		rows, err := stmt.QueryContext(ctx)
 		if err != nil {
 			return err
 		}
@@ -223,35 +252,69 @@ func BmSelectPreparedLargeRaw(db *sql.DB, n int) error {
 	return nil
 }
 
+// runConcurrent calls fn n times in total, spread across co goroutines.
+// The first error cancels the remaining work and is returned. If the parent
+// context is cancelled before all the work has run, its error is returned.
+func runConcurrent(parent context.Context, n, co int, fn func(ctx context.Context, worker int) error) error {
+	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
+
+	var (
+		wg       sync.WaitGroup
+		once     sync.Once
+		firstErr error
+	)
+
+	remain := int64(n)
+
+	wg.Add(co)
+
+	for w := 0; w < co; w++ {
+		go func(w int) {
+			defer wg.Done()
+
+			for ctx.Err() == nil && atomic.AddInt64(&remain, -1) >= 0 {
+				if err := fn(ctx, w); err != nil {
+					once.Do(func() {
+						firstErr = err
+						cancel()
+					})
+
+					return
+				}
+			}
+		}(w)
+	}
+
+	wg.Wait()
+
+	if firstErr != nil {
+		return firstErr
+	}
+
+	// remain only stays above zero when the loop stopped before claiming every task.
+	if atomic.LoadInt64(&remain) > 0 {
+		return parent.Err()
+	}
+
+	return nil
+}
+
 func runPreparedExecConcurrent(db *sql.DB, n int, co int) error {
-	stmt, err := db.Prepare("DO 1")
+	ctx := context.Background()
+
+	stmt, err := db.PrepareContext(ctx, "DO 1")
 	if err != nil {
 		return err
 	}
 
-	remain := int64(n)
-	var wg sync.WaitGroup
-	wg.Add(co)
+	runErr := runConcurrent(ctx, n, co, func(ctx context.Context, _ int) error {
+		_, err := stmt.ExecContext(ctx)
 
-	for i := 0; i < co; i++ {
-		go func() {
-			for {
-				if atomic.AddInt64(&remain, -1) < 0 {
-					wg.Done()
-					return
-				}
+		return err
+	})
 
-				if _, err1 := stmt.Exec(); err1 != nil {
-					wg.Done()
-					err = err1
-					return
-				}
-			}
-		}()
-	}
-	wg.Wait()
-	stmt.Close()
-	return err
+	return errors.Join(runErr, stmt.Close())
 }
 
 func BmPreparedExecConcurrent1(db *sql.DB, n int) error {
@@ -275,36 +338,21 @@ func BmPreparedExecConcurrent16(db *sql.DB, n int) error {
 }
 
 func runPreparedQueryConcurrent(db *sql.DB, n int, co int) error {
-	stmt, err := db.Prepare("SELECT ?, \"foobar\"")
+	ctx := context.Background()
+
+	stmt, err := db.PrepareContext(ctx, "SELECT ?, \"foobar\"")
 	if err != nil {
 		return err
 	}
 
-	remain := int64(n)
-	var wg sync.WaitGroup
-	wg.Add(co)
+	runErr := runConcurrent(ctx, n, co, func(ctx context.Context, worker int) error {
+		var id int
+		var str string
 
-	for i := 0; i < co; i++ {
-		go func(i int) {
-			var id int
-			var str string
-			for {
-				if atomic.AddInt64(&remain, -1) < 0 {
-					wg.Done()
-					return
-				}
+		return stmt.QueryRowContext(ctx, worker).Scan(&id, &str)
+	})
 
-				if err1 := stmt.QueryRow(i).Scan(&id, &str); err1 != nil {
-					wg.Done()
-					err = err1
-					return
-				}
-			}
-		}(i)
-	}
-	wg.Wait()
-	stmt.Close()
-	return err
+	return errors.Join(runErr, stmt.Close())
 }
 
 func BmPreparedQueryConcurrent1(db *sql.DB, n int) error {
